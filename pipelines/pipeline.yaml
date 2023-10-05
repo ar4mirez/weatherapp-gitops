@@ -1,0 +1,70 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-deploy
+spec:
+  params:
+  - name: buildRevision
+    description: The revision of the build, i.e. the commit revision of the application repository
+  - name: appGitUrl
+    description: The application repository
+  - name: appGitOpsUrl
+    description: The application config (GitOps) repository
+  - name: appImage
+    description: The application Docker image name
+  workspaces:
+  - name: app-source
+  - name: app-gitops-source
+  - name: ssh-credentials
+  - name: docker-credentials
+
+  tasks:
+  - name: fetch-app-repository
+    taskRef:
+      name: git-clone
+    params:
+      - name: url
+        value: "$(params.appGitUrl)"
+      - name: revision
+        value: "$(params.buildRevision)"
+    workspaces:
+      - name: ssh-directory
+        workspace: ssh-credentials
+      - name: output
+        workspace: app-source
+
+  - name: build-and-push-app
+    taskRef:
+      name: kaniko
+    runAfter:
+      - git-clone
+    params:
+    - name: IMAGE
+      value: "$(params.appImage):$(params.buildRevision)"
+    workspaces:
+    - name: source
+      workspace: app-source
+    - name: dockerconfig
+      workspace: docker-credentials
+  
+  - name: fetch-app-gitops-repository
+    taskRef:
+      name: git-clone
+    params:
+      - name: url
+        value: "$(params.appGitOpsUrl)"
+      - name: revision
+        value: "$(params.buildRevision)"
+    workspaces:
+      - name: ssh-directory
+        workspace: ssh-credentials
+      - name: output
+        workspace: app-gitops-source
+
+  - name: update-gitops-yaml
+    taskRef: git-cli
+    params:
+      - name: GIT_SCRIPT
+        value: |
+          echo "updating $(inputs.params.environment) image to $(inputs.params.appImage):$(inputs.params.buildRevision)"
+          sed -i "s#$(inputs.params.appImage):[a-zA-Z0-9]\\+#$(inputs.params.appImage):$(inputs.params.buildRevision)#" deployment.yaml

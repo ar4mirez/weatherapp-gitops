@@ -602,3 +602,6 @@ Ask AI to edit or generate...
 
 .env
 .envrc
+
+tekton/*
+secret.yaml

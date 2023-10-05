@@ -1,0 +1,37 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: build-deploy-
+spec:
+  pipelineRef:
+    name: build-deploy
+  podTemplate:
+    securityContext:
+      fsGroup: 65532
+  params:
+  - name: buildRevision
+    value: 1d43d9e1b9a1087d437135edd6d00436bdfd80d7
+  - name: appGitUrl
+    value: git@github.com:ar4mirez/weatherapp.git
+  - name: appGitOpsUrl
+    value: git@github.com:ar4mirez/weatherapp-gitops.git
+  - name: appImage
+    value: docker.io/ar4mirez/weatherapp
+  workspaces:
+  - name: app-source
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Mi
+  - name: app-gitops-source
+    emptyDir: {}
+  - name: ssh-credentials
+    secret:
+      secretName: ssh-credentials
+  - name: docker-credentials
+    secret:
+      secretName: docker-credentials
