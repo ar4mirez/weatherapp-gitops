@@ -37,7 +37,7 @@ spec:
     taskRef:
       name: kaniko
     runAfter:
-      - git-clone
+      - fetch-app-repository
     params:
     - name: IMAGE
       value: "$(params.appImage):$(params.buildRevision)"
@@ -50,6 +50,8 @@ spec:
   - name: fetch-app-gitops-repository
     taskRef:
       name: git-clone
+    runAfter:
+      - build-and-push-app
     params:
       - name: url
         value: "$(params.appGitOpsUrl)"
@@ -62,9 +64,23 @@ spec:
         workspace: app-gitops-source
 
   - name: update-gitops-yaml
-    taskRef: git-cli
+    taskRef:
+      name: git-cli
+    runAfter:
+      - fetch-app-gitops-repository
     params:
       - name: GIT_SCRIPT
         value: |
           echo "updating $(inputs.params.environment) image to $(inputs.params.appImage):$(inputs.params.buildRevision)"
           sed -i "s#$(inputs.params.appImage):[a-zA-Z0-9]\\+#$(inputs.params.appImage):$(inputs.params.buildRevision)#" deployment.yaml
+
+          git config --global user.email "tekton@tekton.dev"
+          git config --global user.name "Tekton Pipeline"
+          git add .
+          git commit --allow-empty -m "[tekton] updating $(inputs.params.environment) image to $(inputs.params.buildRevision)"
+          git push origin main
+    workspaces:
+      - name: ssh-directory
+        workspace: ssh-credentials
+      - name: source
+        workspace: app-gitops-source

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: weatherapp
-        image: ar4mirez/weatherapp:v1.0.0
+        image: ar4mirez/weatherapp:1d43d9e1b9a1087d437135edd6d00436bdfd80d7
         resources:
           limits:
             memory: "128Mi"
