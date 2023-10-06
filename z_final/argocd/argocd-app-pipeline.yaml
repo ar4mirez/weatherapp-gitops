@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     path: pipeline
-    repoURL: https://github.com/example/app-config.git
+    repoURL: https://github.com/ar4mirez/weatherapp-gitops.git
     targetRevision: HEAD
   syncPolicy:
     automated: {}

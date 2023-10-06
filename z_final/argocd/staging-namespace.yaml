@@ -3,5 +3,5 @@ kind: Namespace
 metadata:
   labels:
     istio-injection: enabled
-  name: systemtest
+  name: staging
 ---

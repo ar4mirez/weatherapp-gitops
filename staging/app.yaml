@@ -16,11 +16,11 @@ spec:
     spec:
       containers:
       - name: weatherapp
-        image: ar4mirez/weatherapp:12eeaa681b58507aef17626f7e4e5a56d8a71873
+        image: ar4mirez/weatherapp:v1.0.0
         resources:
           limits:
-            memory: "128Mi"
-            cpu: "500m"
+            memory: "64Mi"
+            cpu: "100m"
         ports:
         - containerPort: 8080
         envFrom:
