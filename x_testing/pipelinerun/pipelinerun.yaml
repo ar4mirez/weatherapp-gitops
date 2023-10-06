@@ -9,12 +9,13 @@ spec:
   podTemplate:
     securityContext:
       fsGroup: 65532
+  serviceAccountName: pipeline
   params:
   - name: buildRevision
     value: 1d43d9e1b9a1087d437135edd6d00436bdfd80d7
   - name: appGitUrl
     value: git@github.com:ar4mirez/weatherapp.git
-  - name: appGitOpsUrl
+  - name: configGitUrl
     value: git@github.com:ar4mirez/weatherapp-gitops.git
   - name: appImage
     value: docker.io/ar4mirez/weatherapp
@@ -27,8 +28,14 @@ spec:
         resources:
           requests:
             storage: 100Mi
-  - name: app-gitops-source
-    emptyDir: {}
+  - name: config-source
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Mi
   - name: ssh-credentials
     secret:
       secretName: ssh-credentials

@@ -1,0 +1,22 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: build-deploy-
+spec:
+  pipelineRef:
+    name: build-deploy
+  serviceAccountName: pipeline
+  params:
+  - name: buildRevision
+    value: '12eeaa681b58507aef17626f7e4e5a56d8a71873'
+  - name: appGitUrl
+    value: 'git@github.com:ar4mirez/weatherapp.git'
+  - name: configGitUrl
+    value: 'git@github.com:ar4mirez/weatherapp-gitops.git'
+  - name: appImage
+    value: 'docker.ar4mirez.com/weatherapp'
+  workspaces:
+  - name: app-source
+    emptyDir: {}
+  - name: config-source
+    emptyDir: {}

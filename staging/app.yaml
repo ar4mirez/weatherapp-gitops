@@ -11,10 +11,12 @@ spec:
     metadata:
       labels:
         app: weatherapp
+      annotations:
+        revision: 12eeaa681b58507aef17626f7e4e5a56d8a71873
     spec:
       containers:
       - name: weatherapp
-        image: ar4mirez/weatherapp:1d43d9e1b9a1087d437135edd6d00436bdfd80d7
+        image: ar4mirez/weatherapp:12eeaa681b58507aef17626f7e4e5a56d8a71873
         resources:
           limits:
             memory: "128Mi"

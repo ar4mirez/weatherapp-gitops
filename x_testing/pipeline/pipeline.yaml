@@ -1,0 +1,68 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-deploy
+spec:
+  params:
+  - name: buildRevision
+    description: The revision of the build, i.e. the commit revision of the application repository
+  - name: appGitUrl
+    description: The application repository
+  - name: configGitUrl
+    description: The application config (GitOps) repository
+  - name: appImage
+    description: The application Docker image name
+  workspaces:
+  - name: app-source
+  - name: config-source
+  - name: ssh-credentials
+  - name: docker-credentials
+
+  tasks:
+  - name: fetch-app-repository
+    taskRef:
+      name: git-clone
+    params:
+      - name: url
+        value: "$(params.appGitUrl)"
+      - name: revision
+        value: "$(params.buildRevision)"
+    workspaces:
+      - name: ssh-directory
+        workspace: ssh-credentials
+      - name: output
+        workspace: app-source
+
+  - name: build-and-push-app
+    taskRef:
+      name: kaniko
+    runAfter:
+      - fetch-app-repository
+    params:
+    - name: IMAGE
+      value: "$(params.appImage):$(params.buildRevision)"
+    workspaces:
+    - name: source
+      workspace: app-source
+    - name: dockerconfig
+      workspace: docker-credentials
+  
+  - name: deploy-staging
+    taskRef:
+      name: deploy
+    runAfter:
+    - build-and-push-app
+    params:
+    - name: environment
+      value: staging
+    - name: configGitUrl
+      value: $(params.configGitUrl)
+    - name: appImage
+      value: $(params.appImage)
+    - name: buildRevision
+      value: $(params.buildRevision)
+    workspaces:
+    - name: config-source
+      workspace: config-source
+    - name: ssh-credentials
+      workspace: ssh-credentials

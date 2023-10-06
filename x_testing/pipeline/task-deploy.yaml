@@ -1,0 +1,57 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy
+spec:
+  params:
+  - name: environment
+  - name: configGitUrl
+  - name: appImage
+  - name: buildRevision
+  workspaces:
+  - name: config-source
+  - name: ssh-credentials
+
+  steps:
+  - name: git-checkout
+    image: alpine/git:v2.26.2
+    workingDir: "$(workspaces.config-source.path)"
+    script: |
+      #!/usr/bin/env sh
+      set -e
+
+      eval $(ssh-agent)
+      chmod 0644 $(workspaces.ssh-credentials.path)/*
+      ssh-add $(workspaces.ssh-credentials.path)/id_*
+      git config --global core.sshCommand 'ssh -o StrictHostKeyChecking=accept-new'
+
+      git init
+      git remote add origin $(params.configGitUrl)
+      git fetch --depth 1 origin master
+      git checkout master
+
+  - name: update-yaml
+    image: alpine/git:v2.26.2
+    workingDir: "$(workspaces.config-source.path)/$(inputs.params.environment)"
+    script: |
+      #!/usr/bin/env sh
+      set -e
+
+      echo "updating $(inputs.params.environment) image to $(inputs.params.appImage):$(inputs.params.buildRevision)"
+      sed -i "s#$(inputs.params.appImage):[a-zA-Z0-9]\\+#$(inputs.params.appImage):$(inputs.params.buildRevision)#" k8s/staging/deployment.yaml
+
+  - name: commit-push-changes-gitops
+    image: alpine/git:v2.26.2
+    workingDir: "$(workspaces.config-source.path)/$(inputs.params.environment)"
+    script: |
+      #!/usr/bin/env sh
+      set -e
+
+      git config --global user.email "tekton@tekton.dev"
+      git config --global user.name "Tekton Pipeline"
+      git add .
+      git commit --allow-empty -m "[tekton] updating $(inputs.params.environment) image to $(inputs.params.buildRevision)"
+      eval $(ssh-agent)
+      chmod 0644 $(workspaces.ssh-credentials.path)/*
+      ssh-add $(workspaces.ssh-credentials.path)/id_*
+      git push origin master

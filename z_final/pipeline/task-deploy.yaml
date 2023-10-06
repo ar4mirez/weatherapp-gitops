@@ -1,0 +1,74 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy
+spec:
+  params:
+  - name: environment
+  - name: argo-app-name
+  - name: configGitUrl
+  - name: appImage
+  - name: buildRevision
+  workspaces:
+  - name: config-source
+  stepTemplate:
+    envFrom:
+    - secretRef:
+        name: argocd-env-secret
+    env:
+    - name: ARGOCD_SERVER
+      value: argocd-server.argocd
+
+  steps:
+  - name: git-checkout
+    image: alpine/git:v2.26.2
+    workingDir: "$(workspaces.config-source.path)"
+    script: |
+      #!/usr/bin/env sh
+      set -e
+
+      eval $(ssh-agent)
+      ssh-add ~/.ssh/id_*
+      git config --global core.sshCommand 'ssh -o StrictHostKeyChecking=accept-new'
+
+      git init
+      git remote add origin $(params.configGitUrl)
+      git fetch --depth 1 origin master
+      git checkout master
+
+  - name: update-yaml
+    image: alpine/git:v2.26.2
+    workingDir: "$(workspaces.config-source.path)/$(inputs.params.environment)"
+    script: |
+      #!/usr/bin/env sh
+      set -e
+
+      echo "updating $(inputs.params.environment) image to $(inputs.params.appImage):$(inputs.params.buildRevision)"
+      sed -i "s#$(inputs.params.appImage):[a-zA-Z0-9]\\+#$(inputs.params.appImage):$(inputs.params.buildRevision)#" app.yaml
+
+      echo "updating all pods in $(inputs.params.environment) to revision $(inputs.params.buildRevision)"
+      sed -i "s#revision: \"[a-zA-Z0-9]\\+\"#revision: \"$(inputs.params.buildRevision)\"#" app.yaml
+
+  - name: commit-push-changes-gitops
+    image: alpine/git:v2.26.2
+    workingDir: "$(workspaces.config-source.path)/$(inputs.params.environment)"
+    script: |
+      #!/usr/bin/env sh
+      set -e
+
+      git config --global user.email "tekton@tekton.dev"
+      git config --global user.name "Tekton Pipeline"
+      git add .
+      git commit --allow-empty -m "[tekton] updating $(inputs.params.environment) image to $(inputs.params.buildRevision)"
+      eval $(ssh-agent)
+      ssh-add ~/.ssh/id_*
+      git push origin master
+
+  - name: wait-for-argocd-rollout
+    image: argoproj/argocd:v1.7.7
+    script: |
+      #!/usr/bin/env sh
+      set -e
+
+      argocd app sync $(inputs.params.argo-app-name) --insecure
+      argocd app wait $(inputs.params.argo-app-name) --sync --health --operation --insecure
